@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+  // ===== CORS =====
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -12,6 +13,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    // ===== LLAMADA A OPENAI =====
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -31,18 +33,31 @@ export default async function handler(req, res) {
       })
     });
 
-    const data = await response.json();
-    const mensaje = data.choices?.[0]?.message?.content;
-
-    if (!mensaje) {
-      throw new Error("Respuesta vacía del oráculo");
+    // ===== VALIDACIÓN DE ERROR OPENAI =====
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("ERROR OPENAI RAW:", errorText);
+      throw new Error("OpenAI error: " + errorText);
     }
 
+    const data = await response.json();
+
+    const mensaje = data?.choices?.[0]?.message?.content;
+
+    if (!mensaje) {
+      throw new Error("Respuesta vacía o inesperada de OpenAI");
+    }
+
+    // ===== RESPUESTA OK =====
     return res.status(200).json({ mensaje });
+
   } catch (error) {
-    console.error(error);
+    // ===== ERROR REAL =====
+    console.error("ERROR REAL DEL ORÁCULO:", error);
+
     return res.status(500).json({
-      mensaje: "El oráculo guarda silencio por ahora."
+      mensaje: "El oráculo guarda silencio por ahora.",
+      error: error.message || "Error desconocido"
     });
   }
 }
